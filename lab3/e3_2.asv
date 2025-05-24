@@ -1,0 +1,108 @@
+
+omega_c = 0.44 * pi;                      % Center frequency
+freqs = [0.3, 0.44, 0.7] * pi;            % Frequencies of interest
+L_values = [10, 14, 20, 40];
+
+figure;
+hold on;
+title('Frequency Responses for Different L');
+xlabel('Frequency (×π rad/sample)');
+ylabel('|H(e^{jω})|');
+grid on;
+
+for L = L_values
+    n = 0:L-1;
+    h = (2 / L) * cos(omega_c * n);       % FIR bandpass impulse response
+    [H, w] = freqz(h, 1, 1024);
+    plot(w/pi, abs(H), 'DisplayName', ['L = ' num2str(L)]);
+    
+    % Gains at ω = 0.3π, 0.44π, 0.7π
+    gains = interp1(w, abs(H), freqs);
+    fprintf('Gains for L = %d:\n', L);
+    for k = 1:3
+        fprintf('  Gain at ω = %.2fπ: %.4f\n', freqs(k)/pi, gains(k));
+    end
+end
+
+yline(0.707, 'k--', '0.707 threshold');
+yline(0.25, 'r--', '0.25 threshold');
+legend show;
+
+% (c) Selectivity of L = 10 filter
+L = 10;
+n = 0:L-1;
+h = (2 / L) * cos(omega_c * n);
+[H, w] = freqz(h, 1, 1024);
+
+figure;
+plot(w/pi, abs(H), 'b', 'LineWidth', 1.5);
+hold on;
+xline(0.3, 'g--');
+xline(0.44, 'g--');
+xline(0.7, 'g--');
+yline(0.707, 'k--');
+yline(0.25, 'r--');
+title('Selectivity of L = 10 Bandpass Filter');
+xlabel('Frequency (×π rad/sample)');
+ylabel('|H(e^{jω})|');
+legend('|H(e^{jω})|', '0.3π, 0.44π, 0.7π', 'Location', 'best');
+grid on;
+
+% (d) Find smallest L that reduces 0.3π and 0.7π by factor of 10
+target_gain = 0.1;
+found = false;
+
+for L = 10:2:100
+    n = 0:L-1;
+    h = (2 / L) * cos(omega_c * n);
+    [H, w] = freqz(h, 1, 2048);
+    
+    g03 = interp1(w, abs(H), 0.3*pi);
+    g07 = interp1(w, abs(H), 0.7*pi);
+    
+    if g03 <= target_gain && g07 <= target_gain
+        fprintf('\nMinimum L satisfying 10x reduction: %d\n', L);
+        break;
+    end
+end
+
+% (e) Filter the 3-sinusoid signal using final L
+n_full = 0:2000;
+x = 5*cos(0.3*pi*n_full) + ...
+    22*cos(0.44*pi*n_full - pi/3) + ...
+    22*cos(0.7*pi*n_full - pi/4);
+
+h = (2 / L) * cos(omega_c * (0:L-1));
+y = conv(x, h, 'same');
+y_expected = 
+
+figure;
+plot(n_full(1:100), x(1:100), 'b', 'DisplayName', 'Input Signal');
+hold on;
+plot(n_full(1:100), y(1:100), 'r', 'DisplayName', 'Filtered Output');
+hold on;
+plot(n_full(1:100), y_expected(1:100), 'g', 'DisplayName', 'Expected Output');
+title('Input vs Filtered Output (First 100 Samples)');
+xlabel('n');
+ylabel('Amplitude');
+legend;
+grid on;
+
+% (f) Plot final filter frequency response and report gain factors
+[H, w] = freqz(h, 1, 2048);
+
+figure;
+plot(w/pi, abs(H), 'b', 'LineWidth', 1.5);
+title('Final Filter Frequency Response');
+xlabel('Frequency (×π rad/sample)');
+ylabel('|H(e^{jω})|');
+grid on;
+
+gain_03 = interp1(w, abs(H), 0.3*pi);
+gain_044 = interp1(w, abs(H), 0.44*pi);
+gain_07 = interp1(w, abs(H), 0.7*pi);
+
+fprintf('\nFinal filter gain values:\n');
+fprintf('  ω = 0.3π  => Gain = %.4f\n', gain_03);
+fprintf('  ω = 0.44π => Gain = %.4f\n', gain_044);
+fprintf('  ω = 0.7π  => Gain = %.4f\n', gain_07);
